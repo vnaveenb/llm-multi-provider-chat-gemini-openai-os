@@ -14,12 +14,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-_UI = pathlib.Path(__file__).parent / "static" / "index.html"
-
 from shared.adapter import ProviderError
 from shared.providers import get_embeddings, get_llm
 from src.chat_core.pipeline import run_chat, run_tools, stream_chat
 from src.chat_core.tools import get_tool_schemas
+
+_UI = pathlib.Path(__file__).parent / "static" / "index.html"
 
 logger = logging.getLogger(__name__)
 

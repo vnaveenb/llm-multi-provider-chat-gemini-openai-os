@@ -10,7 +10,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 
 from shared.adapter import check_safety_filter, extract_text, normalise_tool_calls
-from shared.providers import get_embeddings, get_llm
+from shared.providers import get_llm
 from src.chat_core.memory import get_history, get_windowed_messages
 from src.chat_core.tools import execute_tool, get_tool_schemas
 

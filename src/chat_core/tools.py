@@ -64,7 +64,7 @@ def register_tool(
     parameters={"type": "object", "properties": {}, "required": []},
 )
 def get_current_time() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+    return datetime.datetime.now(datetime.UTC).isoformat()
 
 
 @register_tool(
