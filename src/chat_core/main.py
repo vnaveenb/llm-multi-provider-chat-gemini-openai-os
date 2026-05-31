@@ -37,6 +37,7 @@ class TokenUsage(BaseModel):
     input: int = 0
     output: int = 0
     total: int = 0
+    cached: int = 0
 
 
 class ChatRequest(BaseModel):

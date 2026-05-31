@@ -48,6 +48,7 @@ def _extract_token_usage(message: AIMessage | AIMessageChunk) -> dict[str, int]:
         "input": usage.get("input_tokens", 0),
         "output": usage.get("output_tokens", 0),
         "total": usage.get("total_tokens", 0),
+        "cached": usage.get("cache_read_input_tokens", 0),
     }
 
 
