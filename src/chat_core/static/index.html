@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Provider Chat Core</title>
+  <style>
+    :root {
+      --bg:           #0d1117;
+      --surface:      #161b22;
+      --border:       #30363d;
+      --text:         #c9d1d9;
+      --muted:        #8b949e;
+      --user-bg:      #1f6feb;
+      --asst-bg:      #21262d;
+      --accent:       #388bfd;
+      --success:      #3fb950;
+      --warning:      #d29922;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    header {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .badge {
+      font-size: 11px;
+      font-family: monospace;
+      padding: 3px 9px;
+      border-radius: 12px;
+    }
+    .provider-badge {
+      background: #0d2137;
+      color: var(--accent);
+      border: 1px solid #1f4070;
+    }
+    .session-area {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .session-id {
+      font-family: monospace;
+      cursor: pointer;
+      color: var(--muted);
+      transition: color .15s;
+    }
+    .session-id:hover { color: var(--text); }
+    .btn-ghost {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ── Tabs ───────────────────────────────────────────────────────────── */
+    .tabs {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+    }
+    .tab {
+      padding: 9px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Messages ───────────────────────────────────────────────────────── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .empty .icon { font-size: 36px; }
+    .empty p { font-size: 13px; }
+
+    .msg { display: flex; flex-direction: column; max-width: 78%; }
+    .msg.user  { align-self: flex-end;   align-items: flex-end; }
+    .msg.asst  { align-self: flex-start; align-items: flex-start; }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user .bubble {
+      background: var(--user-bg);
+      color: #fff;
+      border-bottom-right-radius: 3px;
+    }
+    .msg.asst .bubble {
+      background: var(--asst-bg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 3px;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: var(--text);
+      border-radius: 1px;
+      animation: blink .75s step-end infinite;
+      vertical-align: text-bottom;
+      margin-left: 1px;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    .msg-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 5px;
+      padding: 0 3px;
+    }
+
+    /* tool call / result cards */
+    .tool-card {
+      margin-top: 6px;
+      background: var(--surface);
+      border-left: 3px solid var(--warning);
+      border-radius: 0 6px 6px 0;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-family: monospace;
+      max-width: 460px;
+      word-break: break-all;
+    }
+    .tool-card.result { border-left-color: var(--success); }
+    .tool-label {
+      font-weight: 700;
+      margin-bottom: 3px;
+      font-family: -apple-system, sans-serif;
+      font-size: 11px;
+      letter-spacing: .3px;
+    }
+    .tool-card .tool-label { color: var(--warning); }
+    .tool-card.result .tool-label { color: var(--success); }
+
+    /* ── Input area ─────────────────────────────────────────────────────── */
+    .input-area {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 20px;
+    }
+    .tools-row {
+      display: none;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .tools-row.visible { display: flex; }
+    .tool-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .tool-check input { cursor: pointer; accent-color: var(--accent); }
+    .tool-check:hover { color: var(--text); }
+
+    .input-row { display: flex; gap: 10px; align-items: flex-end; }
+    textarea {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      min-height: 40px;
+      max-height: 120px;
+      outline: none;
+      transition: border-color .15s;
+      line-height: 1.5;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    .btn-send {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .btn-send:hover:not(:disabled) { background: #1c6ed6; }
+    .btn-send:disabled { background: #2d333b; color: var(--muted); cursor: not-allowed; }
+
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 7px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:20px;line-height:1">🤖</span>
+  <h1>Multi-Provider Chat Core</h1>
+  <span class="badge provider-badge" id="providerBadge">…</span>
+  <div class="session-area">
+    <span>Session:</span>
+    <span class="session-id" id="sessionDisplay" title="Click to copy" onclick="copySession()">—</span>
+    <button class="btn-ghost" onclick="newSession()">New</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="setMode('chat')">💬 Chat</button>
+  <button class="tab"        onclick="setMode('stream')">⚡ Stream</button>
+  <button class="tab"        onclick="setMode('tools')">🔧 Tools</button>
+</div>
+
+<div class="messages" id="messages">
+  <div class="empty" id="empty">
+    <div class="icon">💬</div>
+    <p>Send a message to start chatting</p>
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="tools-row" id="toolsRow">
+    <label class="tool-check"><input type="checkbox" value="get_current_time" checked> 🕐 get_current_time</label>
+    <label class="tool-check"><input type="checkbox" value="calculate"        checked> 🧮 calculate</label>
+  </div>
+  <div class="input-row">
+    <textarea id="msgInput"
+      placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+      rows="1"
+      onkeydown="onKey(event)"
+      oninput="resize(this)"></textarea>
+    <button class="btn-send" id="sendBtn" onclick="send()">Send ▶</button>
+  </div>
+  <div class="foot">
+    <span id="modeHint">Mode: Chat — waits for full response</span>
+    <span id="tokenDisplay">Tokens: —</span>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  const SYSTEM = 'You are a helpful, concise AI assistant.';
+  const HINTS = {
+    chat:   'Mode: Chat — waits for full response',
+    stream: 'Mode: Stream — tokens arrive in real time ⚡',
+    tools:  'Mode: Tools — LLM can call server-side functions 🔧',
+  };
+
+  let mode = 'chat';
+  let sessionId = uuid();
+  let busy = false;
+  let totalIn = 0, totalOut = 0;
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  refreshSessionDisplay();
+  loadProvider();
+
+  async function loadProvider() {
+    try {
+      const d = await fetch('/health').then(r => r.json());
+      document.getElementById('providerBadge').textContent = d.provider;
+    } catch { document.getElementById('providerBadge').textContent = 'offline'; }
+  }
+
+  // ── Mode ───────────────────────────────────────────────────────────────────
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.tab').forEach((t, i) =>
+      t.classList.toggle('active', ['chat','stream','tools'][i] === m));
+    document.getElementById('toolsRow').classList.toggle('visible', m === 'tools');
+    document.getElementById('modeHint').textContent = HINTS[m];
+  }
+
+  // ── Session ────────────────────────────────────────────────────────────────
+  function uuid() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c/4).toString(16));
+  }
+  function refreshSessionDisplay() {
+    document.getElementById('sessionDisplay').textContent = sessionId.slice(0,8)+'…';
+  }
+  function newSession() {
+    sessionId = uuid();
+    refreshSessionDisplay();
+    document.getElementById('messages').innerHTML =
+      '<div class="empty"><div class="icon">🔄</div><p>New session started</p></div>';
+    totalIn = 0; totalOut = 0;
+    document.getElementById('tokenDisplay').textContent = 'Tokens: —';
+  }
+  function copySession() {
+    navigator.clipboard?.writeText(sessionId);
+    const el = document.getElementById('sessionDisplay');
+    el.textContent = 'copied!';
+    setTimeout(refreshSessionDisplay, 1200);
+  }
+
+  // ── Input helpers ──────────────────────────────────────────────────────────
+  function resize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+  function onKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  }
+
+  // ── DOM helpers ────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function clearEmpty() {
+    document.getElementById('empty')?.remove();
+  }
+  function scroll() {
+    const el = document.getElementById('messages');
+    el.scrollTop = el.scrollHeight;
+  }
+  function appendUserMsg(text) {
+    clearEmpty();
+    const d = document.createElement('div');
+    d.className = 'msg user';
+    d.innerHTML = `<div class="bubble">${esc(text)}</div>`;
+    document.getElementById('messages').appendChild(d);
+    scroll();
+  }
+  function appendAsstShell() {
+    clearEmpty();
+    const wrap = document.createElement('div');
+    wrap.className = 'msg asst';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    wrap.appendChild(bubble);
+    document.getElementById('messages').appendChild(wrap);
+    scroll();
+    return { wrap, bubble };
+  }
+  function appendToolCard(label, body, isResult) {
+    const c = document.createElement('div');
+    c.className = 'tool-card' + (isResult ? ' result' : '');
+    c.innerHTML = `<div class="tool-label">${esc(label)}</div><pre style="white-space:pre-wrap;font-size:12px">${esc(body)}</pre>`;
+    return c;
+  }
+  function updateTokens(tok) {
+    if (!tok) return;
+    totalIn  += tok.input  || 0;
+    totalOut += tok.output || 0;
+    document.getElementById('tokenDisplay').textContent =
+      `Tokens: ${totalIn} in / ${totalOut} out`;
+  }
+
+  // ── Send dispatcher ────────────────────────────────────────────────────────
+  async function send() {
+    const el = document.getElementById('msgInput');
+    const msg = el.value.trim();
+    if (!msg || busy) return;
+
+    busy = true;
+    document.getElementById('sendBtn').disabled = true;
+    el.value = ''; el.style.height = 'auto';
+    appendUserMsg(msg);
+
+    try {
+      if      (mode === 'chat')   await doChat(msg);
+      else if (mode === 'stream') await doStream(msg);
+      else                        await doTools(msg);
+    } catch (err) {
+      const { bubble } = appendAsstShell();
+      bubble.style.color = '#f85149';
+      bubble.textContent = '⚠ ' + err.message;
+    } finally {
+      busy = false;
+      document.getElementById('sendBtn').disabled = false;
+      el.focus();
+    }
+  }
+
+  // ── Chat (sync) ────────────────────────────────────────────────────────────
+  async function doChat(msg) {
+    const { wrap, bubble } = appendAsstShell();
+    const cur = document.createElement('span');
+    cur.className = 'cursor';
+    bubble.appendChild(cur);
+
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message: msg, system_prompt: SYSTEM }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+
+    bubble.textContent = data.answer;
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = data.model;
+    wrap.appendChild(meta);
+    updateTokens(data.tokens);
+    scroll();
+  }
+
+  // ── Stream ─────────────────────────────────────────────────────────────────
+  async function doStream(msg) {
+    const { wrap, bubble } = appendAsstShell();
+    const cur = document.createElement('span');
+    cur.className = 'cursor';
+    bubble.appendChild(cur);
+
+    const res = await fetch('/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message: msg, system_prompt: SYSTEM }),
+    });
+    if (!res.ok) throw new Error(res.statusText);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', text = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+
+      const parts = buf.split('\n\n');
+      buf = parts.pop(); // keep incomplete tail
+
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        let ev;
+        try { ev = JSON.parse(part.slice(6)); } catch { continue; }
+
+        if (ev.token !== undefined) {
+          text += ev.token;
+          bubble.textContent = text;
+          bubble.appendChild(cur);
+          scroll();
+        }
+        if (ev.done) {
+          cur.remove();
+          const meta = document.createElement('div');
+          meta.className = 'msg-meta';
+          meta.textContent = '⚡ streamed';
+          wrap.appendChild(meta);
+          updateTokens(ev.tokens);
+        }
+      }
+    }
+  }
+
+  // ── Tools ──────────────────────────────────────────────────────────────────
+  async function doTools(msg) {
+    const tools = [...document.querySelectorAll('#toolsRow input:checked')].map(el => el.value);
+    if (!tools.length) throw new Error('Select at least one tool above');
+
+    const { wrap, bubble } = appendAsstShell();
+    const cur = document.createElement('span');
+    cur.className = 'cursor';
+    bubble.appendChild(cur);
+
+    const res = await fetch('/tools', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message: msg, tools, system_prompt: SYSTEM }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const data = await res.json();
+
+    bubble.textContent = data.answer;
+
+    for (const tc of data.tool_calls)
+      wrap.appendChild(appendToolCard(`🔧 called: ${tc.name}`, JSON.stringify(tc.args, null, 2), false));
+    for (const tr of data.tool_results)
+      wrap.appendChild(appendToolCard(`✅ result: ${tr.name}`, tr.result, true));
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = `${data.model} · ${data.tool_calls.length} tool call(s)`;
+    wrap.appendChild(meta);
+    updateTokens(data.tokens);
+    scroll();
+  }
+</script>
+</body>
+</html>
