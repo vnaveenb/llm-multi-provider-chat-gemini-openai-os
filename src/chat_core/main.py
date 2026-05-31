@@ -97,7 +97,7 @@ class ReloadResponse(BaseModel):
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
     try:
-        import redis.asyncio as aioredis  # type: ignore[import-untyped]
+        import redis.asyncio as aioredis
 
         r = aioredis.from_url(redis_url)
         await r.ping()

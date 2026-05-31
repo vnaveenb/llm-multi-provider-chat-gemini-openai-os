@@ -6,7 +6,7 @@ import ast
 import datetime
 import operator
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 TOOL_REGISTRY: dict[str, dict[str, Any]] = {}
 
@@ -29,15 +29,15 @@ def _eval_node(node: ast.expr) -> float | int:
     if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
         return node.value
     if isinstance(node, ast.BinOp):
-        op = _BINOPS.get(type(node.op))
-        if op is None:
+        bop = _BINOPS.get(type(node.op))
+        if bop is None:
             raise ValueError(f"Unsupported operator: {type(node.op).__name__}")
-        return op(_eval_node(node.left), _eval_node(node.right))
+        return cast(float | int, bop(_eval_node(node.left), _eval_node(node.right)))
     if isinstance(node, ast.UnaryOp):
-        op = _UNOPS.get(type(node.op))
-        if op is None:
+        uop = _UNOPS.get(type(node.op))
+        if uop is None:
             raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
-        return op(_eval_node(node.operand))
+        return cast(float | int, uop(_eval_node(node.operand)))
     raise ValueError(f"Unsupported expression node: {type(node).__name__}")
 
 
@@ -122,7 +122,7 @@ def execute_tool(name: str, args: dict[str, Any]) -> str:
     if entry is None:
         raise ValueError(f"Unknown tool: {name!r}")
     try:
-        return entry["callable"](**args)
+        return cast(str, entry["callable"](**args))
     except Exception as exc:
         return f"Tool error: {exc}"
 

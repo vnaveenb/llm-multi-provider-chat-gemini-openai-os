@@ -30,7 +30,7 @@ def get_history(session_id: str) -> BaseChatMessageHistory:
             url=redis_url,
             ttl=_REDIS_TTL,
         )
-        store.get_messages()
+        _ = store.messages
         return store
     except Exception as exc:
         logger.warning("Redis unavailable (%s) — using in-process store for %r", exc, session_id)

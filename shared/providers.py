@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 from langchain.chat_models import init_chat_model
 from langchain_core.embeddings import Embeddings
@@ -72,7 +72,7 @@ def get_llm(
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
 
-    return init_chat_model(model=model, model_provider=provider, **kwargs)
+    return cast(BaseChatModel, init_chat_model(model=model, model_provider=provider, **kwargs))
 
 
 @lru_cache(maxsize=2)
@@ -97,7 +97,7 @@ def get_embeddings(
     if model_override:
         model = model_override
 
-    from langchain.embeddings import init_embeddings  # type: ignore[attr-defined]
+    from langchain.embeddings import init_embeddings
 
     return init_embeddings(model=f"{provider}:{model}")
 
