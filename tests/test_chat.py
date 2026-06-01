@@ -50,7 +50,7 @@ def test_chat_response_schema(client: TestClient) -> None:
     assert data["answer"] == "hi there"
     assert data["session_id"] == "t-002"
     assert "model" in data
-    assert set(data["tokens"].keys()) == {"input", "output", "total"}
+    assert set(data["tokens"].keys()) == {"input", "output", "total", "cached"}
 
 
 # ── /chat/stream ──────────────────────────────────────────────────────────────
